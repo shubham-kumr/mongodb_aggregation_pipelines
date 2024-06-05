@@ -284,5 +284,9 @@ Output:
 ## Resources
 - [MongoDB Documentation](https://docs.mongodb.com/manual/aggregation/)
 - [YouTube Playlist](https://youtube.com/playlist?list=PLRAV69dS1uWQ6CZCehxKy0rjkqhQ2Z88t)
-```
+
+## Contributions
+
+If you notice any errors or have suggestions for improvement, feel free to contribute by submitting a pull request or opening an issue in this repository.
+
 This detailed README with examples and outputs helps illustrate each MongoDB aggregation concept effectively, providing a comprehensive guide to using aggregation pipelines.
