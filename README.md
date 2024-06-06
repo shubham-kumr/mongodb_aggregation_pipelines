@@ -1,292 +1,411 @@
-# MongoDB Aggregation Pipelines
+### MongoDB Aggregation Pipelines Explained
 
-This repository contains code examples and notes based on the YouTube playlist [MongoDB Aggregation Pipelines](https://youtube.com/playlist?list=PLRAV69dS1uWQ6CZCehxKy0rjkqhQ2Z88t).
+MongoDB aggregation framework is a powerful tool for performing data processing and analysis directly within the database. Aggregation operations process data records and return computed results. This is especially useful for transforming data and computing aggregated results from multiple documents in a collection. Let's break down the concepts of aggregation pipelines using examples from the provided FakeJSON-Data.
 
-## Table of Contents
-1. [Introduction to Aggregation](#1-introduction-to-aggregation)
-2. [Pipeline Stages](#2-pipeline-stages)
-3. [Match and Project](#3-match-and-project)
-4. [Group and Unwind](#4-group-and-unwind)
-5. [Lookup and Facet](#5-lookup-and-facet)
-6. [Bucket and Graph Lookup](#6-bucket-and-graph-lookup)
-7. [Performance Tuning](#7-performance-tuning)
-8. [Real-world Examples](#8-real-world-examples)
-9. [Resources](#resources)
+### Resources
 
+- [FakeJSON-Data](https://gist.github.com/theshubhamkumr/9d27d004c3bba89b4152eb57f99361bd)
+- [YouTube Playlist](https://youtube.com/playlist?list=PLRAV69dS1uWQ6CZCehxKy0rjkqhQ2Z88t)
+- [MongoDB Documentation](https://docs.mongodb.com/manual/aggregation/)
 
-## Detailed Explanation
+### Table of Contents
 
-### 1. Introduction to Aggregation
+1. [Introduction to Aggregation Pipelines](#introduction-to-aggregation-pipelines)
+2. [Aggregation Pipeline Stages](#aggregation-pipeline-stages)
+3. [Example Aggregation Pipeline](#example-aggregation-pipeline)
+   1. [$match Stage](#1-match-stage)
+   2. [$group Stage](#2-group-stage)
+   3. [$project Stage](#3-project-stage)
+   4. [$sort Stage](#4-sort-stage)
+   5. [$limit Stage](#5-limit-stage)
+   6. [$skip Stage](#6-skip-stage)
+4. [Additional Aggregation Pipeline Stages](#additional-aggregation-pipeline-stages)
+   1. [$unwind Stage](#7-unwind-stage)
+   2. [$lookup Stage](#8-lookup-stage)
+   3. [$addFields Stage](#9-addfields-stage)
+   4. [$out Stage](#10-out-stage)
+   5. [$merge Stage](#11-merge-stage)
+5. [Contributions](#contributions)
 
-Aggregation in MongoDB is a powerful tool for data processing and analysis, allowing transformation and combination of data to gain insights.
+### Aggregation Pipeline Stages
 
-#### Example:
-Input:
-```json
-[
-  { "status": "A", "customerId": 1, "amount": 100 },
-  { "status": "A", "customerId": 2, "amount": 200 }
-]
-```
+An aggregation pipeline consists of stages. Each stage transforms the documents as they pass through the pipeline. The stages can filter, sort, group, reshape, and modify documents. Here are some of the primary stages used in aggregation pipelines:
 
-Pipeline:
-```javascript
-db.sales.aggregate([
-  { $match: { status: "A" } },
-  { $group: { _id: "$customerId", totalAmount: { $sum: "$amount" } } }
-]);
-```
+1. **$match**: Filters documents to pass only those that match the specified condition(s).
+2. **$group**: Groups input documents by a specified identifier expression and applies the accumulator expressions to each group.
+3. **$project**: Reshapes each document in the stream, such as by including, excluding, or adding fields.
+4. **$sort**: Sorts all input documents and returns them in the specified order.
+5. **$limit**: Restricts the number of documents passed to the next stage in the pipeline.
+6. **$skip**: Skips the first N documents, and passes the remaining documents to the next stage in the pipeline.
+7. **$unwind**: Deconstructs an array field from the input documents to output a document for each element.
+8. **$lookup**: Performs a left outer join to another collection in the same database to filter in documents from the “joined” collection for processing.
+9. **$addFields**: Adds new fields to documents. These fields can be computed or static values.
+10. **$out**: Writes the resulting documents of the aggregation pipeline to a specified collection.
+11. **$merge**: Allows the results of the aggregation pipeline to be output to a specified collection, either updating existing documents or inserting new ones.
 
-Output:
-```json
-[
-  { "_id": 1, "totalAmount": 100 },
-  { "_id": 2, "totalAmount": 200 }
-]
-```
+### Example Aggregation Pipeline
 
-### 2. Pipeline Stages
+Let's consider a few examples using the FakeJSON-Data to demonstrate these stages.
 
-Aggregation pipelines consist of multiple stages, each transforming documents in a series of steps.
+#### Sample Data
 
-- **$match**: Filters documents.
-- **$project**: Reshapes documents.
-- **$group**: Groups documents by a specified key.
-- **$sort**: Orders documents.
-
-#### Example:
-Input:
-```json
-[
-  { "status": "shipped", "orderDate": "2024-01-01" },
-  { "status": "pending", "orderDate": "2024-02-01" }
-]
-```
-
-Pipeline:
-```javascript
-db.orders.aggregate([
-  { $match: { status: "shipped" } },
-  { $sort: { orderDate: -1 } }
-]);
-```
-
-Output:
-```json
-[
-  { "status": "shipped", "orderDate": "2024-01-01" }
-]
-```
-
-### 3. Match and Project
-
-- **$match**: Filters documents based on specific conditions.
-- **$project**: Specifies which fields to include or exclude.
-
-#### Example:
-Input:
-```json
-[
-  { "name": "Alice", "age": 30, "address": "123 Main St" },
-  { "name": "Bob", "age": 20, "address": "456 Maple Ave" }
-]
-```
-
-Pipeline:
-```javascript
-db.customers.aggregate([
-  { $match: { age: { $gt: 25 } } },
-  { $project: { name: 1, age: 1, address: 1 } }
-]);
-```
-
-Output:
-```json
-[
-  { "name": "Alice", "age": 30, "address": "123 Main St" }
-]
-```
-
-### 4. Group and Unwind
-
-- **$group**: Aggregates documents into groups, allowing calculations like sum, average, count, etc.
-- **$unwind**: Deconstructs an array field from the input documents to output a document for each element.
-
-#### Example:
-Input:
-```json
-[
-  { "productId": 1, "quantity": 10, "items": ["item1", "item2"] },
-  { "productId": 2, "quantity": 5, "items": ["item3"] }
-]
-```
-
-Pipeline:
-```javascript
-db.orders.aggregate([
-  { $group: { _id: "$productId", totalSold: { $sum: "$quantity" } } },
-  { $unwind: "$items" }
-]);
-```
-
-Output:
-```json
-[
-  { "_id": 1, "totalSold": 10 },
-  { "_id": 2, "totalSold": 5 }
-]
-```
-
-### 5. Lookup and Facet
-
-- **$lookup**: Performs a left outer join to another collection.
-- **$facet**: Processes multiple aggregation pipelines within a single stage.
-
-#### Example:
-Input:
-```json
-[
-  { "orderId": 1, "productId": 1 },
-  { "orderId": 2, "productId": 2 }
-]
-```
+Here is a subset of the FakeJSON-Data we will use:
 
 ```json
 [
-  { "_id": 1, "productName": "Product A" },
-  { "_id": 2, "productName": "Product B" }
+  {
+    "name": "John Doe",
+    "age": 29,
+    "city": "New York",
+    "salary": 70000
+  },
+  {
+    "name": "Jane Smith",
+    "age": 32,
+    "city": "Los Angeles",
+    "salary": 80000
+  },
+  {
+    "name": "Jim Brown",
+    "age": 45,
+    "city": "Chicago",
+    "salary": 120000
+  },
+  {
+    "name": "Jake Blues",
+    "age": 35,
+    "city": "New York",
+    "salary": 95000
+  }
 ]
 ```
 
-Pipeline:
-```javascript
-db.orders.aggregate([
-  { $lookup: { from: "products", localField: "productId", foreignField: "_id", as: "productDetails" } },
-  { $facet: {
-      "categorizedByPrice": [
-        { $match: { price: { $gt: 100 } } },
-        { $bucket: { groupBy: "$price", boundaries: [0, 200, 400] } }
-      ],
-      "categorizedByQuantity": [
-        { $match: { quantity: { $gt: 50 } } },
-        { $bucket: { groupBy: "$quantity", boundaries: [0, 50, 100] } }
-      ]
+#### 1. $match Stage
+
+The `$match` stage filters the documents.
+
+```json
+db.employees.aggregate([
+  { $match: { city: "New York" } }
+])
+```
+
+**Explanation**: This pipeline filters documents to only those where the city is "New York".
+
+**Output**:
+
+```json
+[
+  { "name": "John Doe", "age": 29, "city": "New York", "salary": 70000 },
+  { "name": "Jake Blues", "age": 35, "city": "New York", "salary": 95000 }
+]
+```
+
+#### 2. $group Stage
+
+The `$group` stage groups documents by a specified field and can perform operations on each group.
+
+```json
+db.employees.aggregate([
+  { $group: { _id: "$city", averageSalary: { $avg: "$salary" } } }
+])
+```
+
+**Explanation**: This pipeline groups documents by the city and calculates the average salary for each city.
+
+**Output**:
+
+```json
+[
+  { "_id": "New York", "averageSalary": 82500 },
+  { "_id": "Los Angeles", "averageSalary": 80000 },
+  { "_id": "Chicago", "averageSalary": 120000 }
+]
+```
+
+#### 3. $project Stage
+
+The `$project` stage reshapes documents by including, excluding, or adding new fields.
+
+```json
+db.employees.aggregate([
+  { $project: { name: 1, city: 1, salary: 1, _id: 0 } }
+])
+```
+
+**Explanation**: This pipeline projects documents to include only the `name`, `city`, and `salary` fields, excluding the `_id` field.
+
+**Output**:
+
+```json
+[
+  { "name": "John Doe", "city": "New York", "salary": 70000 },
+  { "name": "Jane Smith", "city": "Los Angeles", "salary": 80000 },
+  { "name": "Jim Brown", "city": "Chicago", "salary": 120000 },
+  { "name": "Jake Blues", "city": "New York", "salary": 95000 }
+]
+```
+
+#### 4. $sort Stage
+
+The `$sort` stage orders documents by specified fields.
+
+```json
+db.employees.aggregate([
+  { $sort: { age: 1 } }
+])
+```
+
+**Explanation**: This pipeline sorts documents by age in ascending order.
+
+**Output**:
+
+```json
+[
+  { "name": "John Doe", "age": 29, "city": "New York", "salary": 70000 },
+  { "name": "Jane Smith", "age": 32, "city": "Los Angeles", "salary": 80000 },
+  { "name": "Jake Blues", "age": 35, "city": "New York", "salary": 95000 },
+  { "name": "Jim Brown", "age": 45, "city": "Chicago", "salary": 120000 }
+]
+```
+
+#### 5. $limit Stage
+
+The `$limit` stage restricts the number of documents to pass to the next stage.
+
+```json
+db.employees.aggregate([
+  { $limit: 2 }
+])
+```
+
+**Explanation**: This pipeline limits the output to the first 2 documents.
+
+**Output**:
+
+```json
+[
+  { "name": "John Doe", "age": 29, "city": "New York", "salary": 70000 },
+  { "name": "Jane Smith", "age": 32, "city": "Los Angeles", "salary": 80000 }
+]
+```
+
+#### 6. $skip Stage
+
+The `$skip` stage skips the first N documents.
+
+```json
+db.employees.aggregate([
+  { $skip: 2 }
+])
+```
+
+**Explanation**: This pipeline skips the first 2 documents and returns the rest.
+
+**Output**:
+
+```json
+[
+  { "name": "Jim Brown", "age": 45, "city": "Chicago", "salary": 120000 },
+  { "name": "Jake Blues", "age": 35, "city": "New York", "salary": 95000 }
+]
+```
+
+### Combining Multiple Stages
+
+Aggregation pipelines often combine multiple stages to perform complex data processing in a single query. Here is an example combining `$match`, `$group`, and `$sort` stages:
+
+```json
+db.employees.aggregate([
+  { $match: { city: "New York" } },
+  { $group: { _id: "$city", totalSalary: { $sum: "$salary" }, averageAge: { $avg: "$age" } } },
+  { $sort: { totalSalary: -1 } }
+])
+```
+
+**Explanation**:
+
+1. `$match` filters for employees in "New York".
+2. `$group` groups these employees by city and calculates the total salary and average age.
+3. `$sort` orders the results by total salary in descending order.
+
+**Output**:
+
+```json
+[{ "_id": "New York", "totalSalary": 165000, "averageAge": 32 }]
+```
+
+Sure, let's delve into more stages of MongoDB aggregation pipelines, exploring their functions and providing practical examples based on the provided FakeJSON-Data. These stages include `$unwind`, `$lookup`, `$addFields`, `$out`, and `$merge`.
+
+### Additional Aggregation Pipeline Stages
+
+#### 7. $unwind Stage
+
+The `$unwind` stage deconstructs an array field from the input documents to output a document for each element.
+
+**Example**: Suppose we have the following modified dataset with an array field `hobbies`:
+
+```json
+[
+  { "name": "John Doe", "hobbies": ["reading", "swimming"] },
+  { "name": "Jane Smith", "hobbies": ["dancing", "cycling", "cooking"] }
+]
+```
+
+**Pipeline**:
+
+```json
+db.employees.aggregate([
+  { $unwind: "$hobbies" }
+])
+```
+
+**Explanation**: This pipeline breaks down the `hobbies` array so that each hobby becomes a separate document.
+
+**Output**:
+
+```json
+[
+  { "name": "John Doe", "hobbies": "reading" },
+  { "name": "John Doe", "hobbies": "swimming" },
+  { "name": "Jane Smith", "hobbies": "dancing" },
+  { "name": "Jane Smith", "hobbies": "cycling" },
+  { "name": "Jane Smith", "hobbies": "cooking" }
+]
+```
+
+#### 8. $lookup Stage
+
+The `$lookup` stage performs a left outer join to another collection in the same database to filter in documents from the “joined” collection for processing.
+
+**Example**: Suppose we have another collection `departments`:
+
+```json
+[
+  { "department_id": 1, "department_name": "HR" },
+  { "department_id": 2, "department_name": "Engineering" }
+]
+```
+
+And the `employees` collection has a `department_id` field:
+
+```json
+[
+  { "name": "John Doe", "department_id": 1 },
+  { "name": "Jane Smith", "department_id": 2 }
+]
+```
+
+**Pipeline**:
+
+```json
+db.employees.aggregate([
+  {
+    $lookup: {
+      from: "departments",
+      localField: "department_id",
+      foreignField: "department_id",
+      as: "department_info"
     }
   }
-]);
+])
 ```
 
-Output:
+**Explanation**: This pipeline joins `employees` with `departments` based on `department_id`.
+
+**Output**:
+
 ```json
 [
   {
-    "categorizedByPrice": [
-      { "_id": 200, "count": 1 },
-      { "_id": 400, "count": 0 }
-    ],
-    "categorizedByQuantity": [
-      { "_id": 50, "count": 0 },
-      { "_id": 100, "count": 1 }
+    "name": "John Doe",
+    "department_id": 1,
+    "department_info": [{ "department_id": 1, "department_name": "HR" }]
+  },
+  {
+    "name": "Jane Smith",
+    "department_id": 2,
+    "department_info": [
+      { "department_id": 2, "department_name": "Engineering" }
     ]
   }
 ]
 ```
 
-### 6. Bucket and Graph Lookup
+#### 9. $addFields Stage
 
-- **$bucket**: Groups documents into buckets based on specified boundaries.
-- **$graphLookup**: Performs a recursive search on a collection.
+The `$addFields` stage adds new fields to documents. These fields can be computed or static values.
 
-#### Example:
-Input:
-```json
-[
-  { "price": 150 },
-  { "price": 75 }
-]
-```
+**Pipeline**:
 
 ```json
-[
-  { "name": "Alice", "friends": ["Bob"] },
-  { "name": "Bob", "friends": ["Charlie"] }
-]
-```
-
-Pipeline:
-```javascript
-db.sales.aggregate([
-  { $bucket: { groupBy: "$price", boundaries: [0, 50, 100, 200], default: "Other" } }
-]);
-
-db.contacts.aggregate([
-  { $graphLookup: { from: "contacts", startWith: "$friends", connectFromField: "friends", connectToField: "name", as: "socialNetwork" } }
-]);
-```
-
-Output:
-```json
-[
-  { "_id": 100, "count": 1 },
-  { "_id": 200, "count": 1 }
-]
-
-[
+db.employees.aggregate([
   {
-    "name": "Alice",
-    "friends": ["Bob"],
-    "socialNetwork": [
-      { "name": "Bob", "friends": ["Charlie"] },
-      { "name": "Charlie", "friends": [] }
-    ]
+    $addFields: {
+      full_name: { $concat: ["$name", " ", "$last_name"] }
+    }
   }
-]
+])
 ```
 
-### 7. Performance Tuning
+**Explanation**: Assuming each document has a `name` and `last_name` field, this pipeline adds a `full_name` field by concatenating `name` and `last_name`.
 
-Optimizing aggregation pipelines involves strategies like indexing, efficient use of stages, and memory management to enhance performance.
+**Output**:
 
-#### Tips:
-- **Indexing**: Index fields used in `$match`, `$sort`, and `$lookup` stages to speed up operations.
-- **Pipeline Efficiency**: Use `$match` and `$project` stages early in the pipeline to reduce the number of documents processed, minimizing resource usage.
-
-### 8. Real-world Examples
-
-This section applies aggregation in real-world scenarios, such as generating reports or analyzing user behavior.
-
-#### Example:
-Input:
 ```json
 [
-  { "date": "2023-03-15", "productId": 1, "amount": 100 },
-  { "date": "2023-07-20", "productId": 2, "amount": 150 }
+  { "name": "John", "last_name": "Doe", "full_name": "John Doe" },
+  { "name": "Jane", "last_name": "Smith", "full_name": "Jane Smith" }
 ]
 ```
 
-Pipeline:
-```javascript
-db.sales.aggregate([
-  { $match: { date: { $gte: new ISODate("2023-01-01"), $lt: new ISODate("2024-01-01") } } },
-  { $group: { _id: { month: { $month: "$date" }, product: "$productId" }, totalSales: { $sum: "$amount" } } },
-  { $sort: { "_id.month": 1, totalSales: -1 } }
-]);
-```
+#### 10. $out Stage
 
-Output:
+The `$out` stage writes the resulting documents of the aggregation pipeline to a specified collection.
+
+**Pipeline**:
+
 ```json
-[
-  { "_id": { "month": 3, "product": 1 }, "totalSales": 100 },
-  { "_id": { "month": 7, "product": 2 }, "totalSales": 150 }
-]
+db.employees.aggregate([
+  {
+    $match: { city: "New York" }
+  },
+  {
+    $out: "new_york_employees"
+  }
+])
 ```
 
-## Resources
-- [MongoDB Documentation](https://docs.mongodb.com/manual/aggregation/)
-- [YouTube Playlist](https://youtube.com/playlist?list=PLRAV69dS1uWQ6CZCehxKy0rjkqhQ2Z88t)
+**Explanation**: This pipeline filters employees in "New York" and writes the results to a new collection named `new_york_employees`.
 
-## Contributions
+**Output**: The results are written to the `new_york_employees` collection, not directly returned.
 
-If you notice any errors or have suggestions for improvement, feel free to contribute by submitting a pull request or opening an issue in this repository.
+#### 11. $merge Stage
 
-This detailed README with examples and outputs helps illustrate each MongoDB aggregation concept effectively, providing a comprehensive guide to using aggregation pipelines.
+The `$merge` stage allows the results of the aggregation pipeline to be output to a specified collection, either updating existing documents or inserting new ones.
+
+**Pipeline**:
+
+```json
+db.employees.aggregate([
+  {
+    $match: { city: "New York" }
+  },
+  {
+    $merge: { into: "city_employees", on: "_id", whenMatched: "merge", whenNotMatched: "insert" }
+  }
+])
+```
+
+**Explanation**: This pipeline filters employees in "New York" and merges the results into the `city_employees` collection. If documents match on `_id`, they are merged; otherwise, they are inserted.
+
+**Output**: The results are merged into the `city_employees` collection.
+
+
+### Contributions
+
+- **FakeJSON-Data**: Used as the primary dataset for examples.
+- **YouTube Playlist**: Provided practical examples and tutorials.
+- **MongoDB Documentation**: Served as the reference for explaining concepts and syntax.
+
+Feel free to contribute to this guide by adding more examples, explanations, or corrections. Your contributions are highly appreciated!
